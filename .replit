@@ -1,0 +1,17 @@
+# replit.toml
+entrypoint = "main.py"
+modules = ["nodejs-20", "python-3.12", "bash", "web", "rust-stable"]
+hidden = [".pythonlibs"]
+
+[nix]
+channel = "stable-24_05"
+
+[deployment]
+run = ["python3", "main.py"]
+deploymentTarget = "cloudrun"
+
+[languages.python.languageServer]
+start = ["pyright-langserver", "--stdio"]
+
+[languages.python.nix]
+packages = ["python312", "poetry", "rustc", "cargo"]
