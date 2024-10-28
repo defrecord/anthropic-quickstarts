@@ -151,7 +151,9 @@ launch_demo() {
 # Function to cleanup on exit
 cleanup() {
     log_info "Cleaning up..."
-    sudo killall dockerd &>/dev/null || true
+    # sudo killall dockerd &>/dev/null || true
+    docker stop anthropic-computer-use
+    docker rm anthropic-computer-use
 }
 
 # Set cleanup trap
