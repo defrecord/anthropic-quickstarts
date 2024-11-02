@@ -34,3 +34,4 @@ RUN apt-get install -y emacs
 # Start the Docker service manually and keep the terminal open
 # RUN service docker start && /bin/bash
 RUN /bin/bash
+

@@ -21,5 +21,36 @@ run-computer-use-demo: ## Run ComputerUse directly on host
 		-p 8080:8080 \
 		-it ghcr.io/anthropics/anthropic-quickstarts:computer-use-demo-latest
 
-run-enclave: ## Run Enclave container for testing
+
+run-computer-use-nested: ## Run ComputerUse in nested Docker environment
+	docker run -it --privileged -it \
+		-v $HOME/.anthropic:/root/.anthropic \
+		-p 8080:8080 -p 8501:8501 -p 5900:5900 -p 6080:6080 \
+		docker:dind \
+		docker run -it \
+			-v /root/.anthropic:/home/computeruse/.anthropic \
+			-p 8080:8080 -p 8501:8501 -p 5900:5900 -p 6080:6080 \
+			ghcr.io/anthropics/anthropic-quickstarts:computer-use-demo-latest
+
+run-ubuntu-nested: ## Run Ubuntu in nested Docker environment
+	docker run -it --privileged -it \
+		-v $HOME/.anthropic:/root/.anthropic \
+		-p 8080:8080 -p 8501:8501 -p 5900:5900 -p 6080:6080 \
+		docker:dind \
+		docker run -it \
+			-v /root/.anthropic:/home/computeruse/.anthropic \
+			-p 8080:8080 -p 8501:8501 -p 5900:5900 -p 6080:6080 \
+			 ubuntu:latest
+
+run-enclave: ## Run Enclave as DinD container for testing
+	docker run -it --net=host --privileged -it \
+		-v $HOME/.anthropic:/root/.anthropic \
+		-p 8080:8080 -p 8501:8501 -p 5900:5900 -p 6080:6080 \
+		docker:dind
+
+run-enclave-local: ## Run Enclave container for testing
 	docker run -it --entrypoint /bin/bash enclave
+
+run-ubuntu: ## Run Ubuntu
+	docker run -it ubuntu:latest /bin/bash
+
