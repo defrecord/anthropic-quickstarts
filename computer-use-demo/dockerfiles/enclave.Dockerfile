@@ -1,37 +1,28 @@
-FROM ubuntu:22.04
+FROM docker:dind
 
-ENV DEBIAN_FRONTEND=noninteractive
+# Install basic development tools
+RUN apk update && apk add --no-cache \
+    curl \
+    xz \
+    tar \
+    git \
+    emacs-x11 \
+    bash \
+    python3 \
+    py3-pip \
+    htop \
+    tmux && \
+    rm -rf /var/cache/apk/*
 
-# Install necessary packages
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        software-properties-common \
-        ca-certificates \
-        curl \
-        gnupg \
-        lsb-release \
-        apt-transport-https
+# Install Nix (single-user installation)
+RUN mkdir -m 0755 /nix && \
+    chown root /nix && \
+    mkdir -p /etc/nix && \
+    echo 'sandbox = false' > /etc/nix/nix.conf
 
-# Add Docker's official GPG key
-RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+# Add environment setup script
+COPY scripts/setup-enclave.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/setup-enclave.sh
 
-# Add Docker repository
-RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \
-    $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-# Install Docker Engine, CLI, and containerd
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        docker-ce docker-ce-cli containerd.io
-
-# Install emacs (optional)
-RUN apt-get install -y emacs
-
-# Fix potential ulimit issue in Docker service script (try both locations)
-# RUN sed -i -e 's#ulimit -Hn 65536#ulimit -n 524288#' /lib/systemd/system/docker.service 
-# RUN sed -i -e 's#ulimit -Hn 65536#ulimit -n 524288#' /etc/init.d/docker
-
-# Start the Docker service manually and keep the terminal open
-# RUN service docker start && /bin/bash
-RUN /bin/bash
-
+# Default command starts Docker daemon and shell
+CMD ["sh", "-c", "dockerd > /var/log/dockerd.log 2>&1 & sleep 3 && /bin/bash"]

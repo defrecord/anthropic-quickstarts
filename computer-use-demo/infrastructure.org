@@ -1,0 +1,252 @@
+#+TITLE: ComputerUse Infrastructure
+#+AUTHOR: AYGP (Computer Use)
+#+DATE: 2024-11-02
+
+* Overview
+This document contains the infrastructure configuration for the ComputerUse project.
+All source blocks are tangled to their respective files with directory creation enabled.
+
+* Container Architecture
+#+begin_src mermaid :file docs/container-architecture.png
+graph TD
+    Host["Host Machine<br/>(~/.anthropic)"] -->|volume mount| Enclave["Enclave (DinD)<br/>Port: 2375"]
+    Enclave -->|network host| CU["ComputerUse Demo<br/>Ports: 8080,8501,5900,6080"]
+    CU -->|8080| Web["Web Interface"]
+    CU -->|8501| Streamlit["Streamlit UI"]
+    CU -->|5900| VNC["VNC Server"]
+    CU -->|6080| NoVNC["NoVNC Web Client"]
+    
+    subgraph "Data Flow"
+        Host -->|"~/.anthropic/tools"| Tools["Development Tools"]
+        Host -->|"~/.anthropic/journal"| Journal["Activity Logs"]
+        Host -->|"api_key"| Auth["Authentication"]
+    end
+#+end_src
+
+* Dockerfile Configurations
+** Enclave Environment
+:PROPERTIES:
+:header-args:dockerfile: :tangle dockerfiles/enclave.Dockerfile :mkdirp t
+:END:
+
+The Enclave provides our isolated Docker-in-Docker environment.
+
+#+begin_src dockerfile
+FROM docker:dind
+
+# Install basic development tools
+RUN apk update && apk add --no-cache \
+    curl \
+    xz \
+    tar \
+    git \
+    emacs-x11 \
+    bash \
+    python3 \
+    py3-pip \
+    htop \
+    tmux && \
+    rm -rf /var/cache/apk/*
+
+# Install Nix (single-user installation)
+RUN mkdir -m 0755 /nix && \
+    chown root /nix && \
+    mkdir -p /etc/nix && \
+    echo 'sandbox = false' > /etc/nix/nix.conf
+
+# Add environment setup script
+COPY scripts/setup-enclave.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/setup-enclave.sh
+
+# Default command starts Docker daemon and shell
+CMD ["sh", "-c", "dockerd > /var/log/dockerd.log 2>&1 & sleep 3 && /bin/bash"]
+#+end_src
+
+** ComputerUse Environment
+:PROPERTIES:
+:header-args:dockerfile: :tangle dockerfiles/computer-use.Dockerfile :mkdirp t
+:END:
+
+The ComputerUse container runs our application with X11 support.
+
+#+begin_src dockerfile
+FROM ubuntu:latest
+
+# Create non-root user
+RUN useradd -m -s /bin/bash computeruse && \
+    mkdir -p /home/computeruse/.anthropic && \
+    chown -R computeruse:computeruse /home/computeruse
+
+# Install required packages
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    xvfb \
+    x11vnc \
+    novnc \
+    websockify \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set up Python environment
+RUN python3 -m pip install --no-cache-dir \
+    anthropic \
+    streamlit \
+    watchdog
+
+# Copy application files
+COPY --chown=computeruse:computeruse . /home/computeruse/computer_use_demo/
+
+# Set up environment
+ENV HOME=/home/computeruse \
+    PATH="/home/computeruse/.local/bin:${PATH}" \
+    DISPLAY=:1
+
+USER computeruse
+WORKDIR /home/computeruse/computer_use_demo
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/ || exit 1
+
+# Start services
+COPY --chown=computeruse:computeruse scripts/entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+#+end_src
+
+* Setup Scripts
+** Enclave Setup
+:PROPERTIES:
+:header-args:sh: :tangle scripts/setup-enclave.sh :mkdirp t :shebang "#!/bin/bash"
+:END:
+
+Initialize the Enclave environment.
+
+#+begin_src sh
+set -e
+
+echo "Starting Docker daemon..."
+dockerd > /var/log/dockerd.log 2>&1 &
+sleep 3
+
+echo "Installing Nix..."
+sh <(curl -L https://nixos.org/nix/install) --no-daemon
+
+echo "Setting up environment..."
+source ~/.nix-profile/etc/profile.d/nix.sh
+
+echo "Setup complete. Starting shell..."
+exec /bin/bash
+#+end_src
+
+** ComputerUse Entrypoint
+:PROPERTIES:
+:header-args:sh: :tangle scripts/entrypoint.sh :mkdirp t :shebang "#!/bin/bash"
+:END:
+
+Start all required services for ComputerUse.
+
+#+begin_src sh
+set -e
+
+echo "Starting Xvfb..."
+Xvfb :1 -screen 0 1280x1024x16 &
+
+echo "Starting VNC server..."
+x11vnc -display :1 -nopw -forever &
+
+echo "Starting noVNC..."
+/usr/share/novnc/utils/launch.sh --vnc localhost:5900 --listen 6080 &
+
+echo "Starting ComputerUse demo..."
+python3 -m streamlit run app.py --server.port 8501 --server.address 0.0.0.0
+#+end_src
+
+* Docker Compose Configuration
+:PROPERTIES:
+:header-args:yaml: :tangle docker-compose.yml :mkdirp t
+:END:
+
+Development environment orchestration.
+
+#+begin_src yaml
+version: '3.8'
+
+services:
+  enclave:
+    build:
+      context: .
+      dockerfile: dockerfiles/enclave.Dockerfile
+    privileged: true
+    volumes:
+      - ~/.anthropic:/root/.anthropic
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "8080:8080"
+      - "8501:8501"
+      - "5900:5900"
+      - "6080:6080"
+    environment:
+      - DOCKER_TLS_CERTDIR=
+    networks:
+      - computer_use_net
+
+  computeruse:
+    build:
+      context: .
+      dockerfile: dockerfiles/computer-use.Dockerfile
+    volumes:
+      - ~/.anthropic:/home/computeruse/.anthropic
+    environment:
+      - DISPLAY=:1
+    depends_on:
+      - enclave
+    network_mode: "service:enclave"  # Use enclave's network namespace
+
+networks:
+  computer_use_net:
+    driver: bridge
+#+end_src
+
+* State Flow
+#+begin_src mermaid
+stateDiagram-v2
+    [*] --> EnclaveStart: Docker Run
+    EnclaveStart --> DockerDaemon: Start Daemon
+    DockerDaemon --> EnvSetup: Install Tools
+    EnvSetup --> Ready: Shell Access
+    
+    Ready --> ComputerUseStart: Launch Demo
+    ComputerUseStart --> X11Setup: Start Xvfb
+    X11Setup --> VNCSetup: Start VNC
+    VNCSetup --> WebSetup: Start noVNC
+    WebSetup --> Running: Start Streamlit
+    
+    Running --> [*]: Shutdown
+#+end_src
+
+* Directory Structure
+#+begin_src text
+.
+├── Dockerfile                 # Main Dockerfile
+├── Makefile                  # Build and run targets
+├── README.md                 # Project documentation
+├── dockerfiles/              # Container definitions
+│   ├── enclave.Dockerfile    # Enclave environment
+│   └── computer-use.Dockerfile # ComputerUse environment
+├── scripts/                  # Setup and entry points
+│   ├── setup-enclave.sh      # Enclave initialization
+│   └── entrypoint.sh         # ComputerUse startup
+├── docker-compose.yml        # Development orchestration
+└── infrastructure.org        # This file
+#+end_src
+
+* Port Mappings
+| Container   | Port | Service          | Purpose                    |
+|------------+------+------------------+----------------------------|
+| ComputerUse | 8080 | HTTP Server     | Web Interface             |
+| ComputerUse | 8501 | Streamlit       | UI Dashboard              |
+| ComputerUse | 5900 | VNC Server      | Remote Desktop Access     |
+| ComputerUse | 6080 | noVNC           | Browser-based VNC Client  |
+| Enclave    | 2375 | Docker Daemon   | Container Management      |
+#+end_src
