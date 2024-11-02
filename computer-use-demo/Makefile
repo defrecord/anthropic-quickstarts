@@ -14,7 +14,7 @@ build-all: build-enclave build-computer-use-demo ## Build all images
 run-computer-use-demo: ## Run ComputerUse directly on host
 	docker run \
 		-e ANTHROPIC_API_KEY=$(ANTHROPIC_API_KEY) \
-		-v $$HOME/.anthropic:/home/computeruse/.anthropic \
+		-v $(HOME)/.anthropic:/home/computeruse/.anthropic \
 		-p 5900:5900 \
 		-p 8501:8501 \
 		-p 6080:6080 \
@@ -24,7 +24,7 @@ run-computer-use-demo: ## Run ComputerUse directly on host
 
 run-computer-use-nested: ## Run ComputerUse in nested Docker environment
 	docker run -it --privileged -it \
-		-v $HOME/.anthropic:/root/.anthropic \
+		-v $(HOME)/.anthropic:/root/.anthropic \
 		-p 8080:8080 -p 8501:8501 -p 5900:5900 -p 6080:6080 \
 		docker:dind \
 		docker run -it \
@@ -34,7 +34,7 @@ run-computer-use-nested: ## Run ComputerUse in nested Docker environment
 
 run-ubuntu-nested: ## Run Ubuntu in nested Docker environment
 	docker run -it --privileged -it \
-		-v $HOME/.anthropic:/root/.anthropic \
+		-v $(HOME)/.anthropic:/root/.anthropic \
 		-p 8080:8080 -p 8501:8501 -p 5900:5900 -p 6080:6080 \
 		docker:dind \
 		docker run -it \
@@ -44,7 +44,7 @@ run-ubuntu-nested: ## Run Ubuntu in nested Docker environment
 
 run-enclave: ## Run Enclave as DinD container for testing
 	docker run -it --net=host --privileged -it \
-		-v $HOME/.anthropic:/root/.anthropic \
+		-v $(HOME)/.anthropic:/root/.anthropic \
 		-p 8080:8080 -p 8501:8501 -p 5900:5900 -p 6080:6080 \
 		docker:dind
 
