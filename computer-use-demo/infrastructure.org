@@ -82,6 +82,48 @@ RUN apk update && apk add --no-cache \
 
 # Rest of Dockerfile remains the same...
 #+end_src
+
+*** Enclave Tooling (Manual)
+
+#+begin_src sh
+#!/bin/bash -ex
+
+# Set environment variables
+export TMPDIR="/tmp"
+export PS1="\n\[\033[1;35m\](tools)\[\033[0m\] \[\033[1;32m\]\u@\h\[\033[0m\]:\[\033[1;34m\]\w\[\033[0m\] \$ "
+
+# Install a comprehensive set of development tools (group 1)
+apk add --no-cache bash curl gcc musl-dev git emacs-x11 vim tmux wget htop tree ripgrep fd jq yq python3 py3-pip nodejs npm make fzf bat exa httpie ncurses bash-completion docker-compose openssh-client pipx direnv poetry sudo xz nix aws-cli
+
+# Install additional tools (group 2)
+apk add --no-cache git jq curl make emacs imagemagick openssl openssh aws-cli coreutils sed gawk util-linux bash gnupg xclip
+
+PYTHON_VERSION="3.12"
+
+# Install Python (if not already installed)
+apk add --no-cache python3="$PYTHON_VERSION" py3-pip="$PYTHON_VERSION"
+
+# Install Poetry
+pip install poetry
+
+# Install Python dependencies
+poetry add anthropic requests streamlit pip virtualenv psutil psycopg2-binary watchdog boto3 poetry-core
+
+
+# Create directories
+mkdir -p $HOME/.anthropic/{tools,backups,journal,sandbox,docs}
+mkdir -p $HOME/.anthropic/journal/screenshots/$(date +%Y-%m-%d)
+
+# Prioritize util-linux in PATH (it includes BSD utils)
+export PATH="/usr/bin:$PATH"  # Adjust if needed
+
+alias pbcopy='tee ~/.anthropic/clipboard.txt | qrencode -t UTF8 -o - | tee ~/.anthropic/qrcode.txt'
+
+# echo "$STATUS_INFO" | qrencode -t UTF8 -o - | xclip -selection clipboard
+echo "🚀 Tools environment activated"
+
+#+end_src
+
 ** ComputerUse Environment
 :PROPERTIES:
 :header-args:dockerfile: :tangle dockerfiles/computer-use.Dockerfile :mkdirp t
@@ -241,7 +283,7 @@ stateDiagram-v2
     X11Setup --> VNCSetup: Start VNC
     VNCSetup --> WebSetup: Start noVNC
     WebSetup --> Running: Start Streamlit
-    
+   
     Running --> [*]: Shutdown
 #+end_src
 

@@ -26,11 +26,12 @@ run-enclave: ## Run Enclave as DinD container with Docker daemon
 		-v $(HOME)/.anthropic:/root/.anthropic \
 		-p 8080:8080 -p 8501:8501 -p 5900:5900 -p 6080:6080 \
 		docker:dind sh -c 'dockerd > /var/log/dockerd.log 2>&1 & sleep 3 && /bin/sh'
-	# Once inside Enclave, run ComputerUse with:
-	# docker run -it \
-	#     -v /root/.anthropic:/home/computeruse/.anthropic \
-	#     --network host \
-	#     ghcr.io/anthropics/anthropic-quickstarts:computer-use-demo-latest
+
+# Once inside Enclave, run ComputerUse with:
+# docker run -it \
+#     -v /root/.anthropic:/home/computeruse/.anthropic \
+#     --network host \
+#     ghcr.io/anthropics/anthropic-quickstarts:computer-use-demo-latest
 
 run-enclave-local: ## Run local Enclave container for testing
 	docker run -it --entrypoint /bin/bash enclave
