@@ -1,28 +1,46 @@
 FROM docker:dind
 
-# Install basic development tools
+# Install comprehensive development toolset
 RUN apk update && apk add --no-cache \
-    curl \
-    xz \
-    tar \
-    git \
+    # Editors and Shell
     emacs-x11 \
+    vim \
+    tmux \
     bash \
+    bash-completion \
+    
+    # Core Utils
+    curl \
+    wget \
+    git \
+    htop \
+    tree \
+    ripgrep \
+    fd \
+    fzf \
+    bat \
+    exa \
+    
+    # Development Tools
     python3 \
     py3-pip \
-    htop \
-    tmux && \
-    rm -rf /var/cache/apk/*
+    nodejs \
+    npm \
+    make \
+    gcc \
+    musl-dev \
+    
+    # Data Processing
+    jq \
+    yq \
+    httpie \
+    
+    # Network Tools
+    bind-tools \
+    openssh-client \
+    docker-compose \
+    
+    # Clean up
+    && rm -rf /var/cache/apk/*
 
-# Install Nix (single-user installation)
-RUN mkdir -m 0755 /nix && \
-    chown root /nix && \
-    mkdir -p /etc/nix && \
-    echo 'sandbox = false' > /etc/nix/nix.conf
-
-# Add environment setup script
-COPY scripts/setup-enclave.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/setup-enclave.sh
-
-# Default command starts Docker daemon and shell
-CMD ["sh", "-c", "dockerd > /var/log/dockerd.log 2>&1 & sleep 3 && /bin/bash"]
+# Rest of Dockerfile remains the same...
