@@ -115,61 +115,96 @@ class RateLimitManager:
     def execute_with_retry(
         self,
         operation: Callable[[], T],
-        operation_id: Optional[str] = None
+        operation_id: Optional[str] = None,
+        *,
+        retry_on: Optional[Type[Exception]] = None
     ) -> T:
-        """Execute operation with retry logic."""
+        """Execute operation with retry logic.
+        
+        Args:
+            operation: Callable that returns type T
+            operation_id: Optional identifier for the operation
+            retry_on: Optional exception type to retry on (default: None, retries on any rate limit error)
+            
+        Returns:
+            The result of type T from the operation
+            
+        Raises:
+            RuntimeError: If max retries exceeded
+            Exception: Any exception from operation that doesn't match retry_on
+        """
         op_id = operation_id or str(hash(operation))
         self.retry_counts.setdefault(op_id, 0)
+        
+        def _is_rate_limit_error(error: Exception) -> bool:
+            """Check if error is a rate limit error."""
+            return (
+                isinstance(error, retry_on) if retry_on 
+                else "rate limit exceeded" in str(error).lower()
+            )
 
+        def _handle_rate_info(result: Any) -> None:
+            """Handle rate limit information from result."""
+            if not hasattr(result, 'headers'):
+                return
+                
+            rate_info = self._parse_rate_limit_headers(result.headers)
+            if not rate_info:
+                return
+                
+            self.rate_limits[op_id] = rate_info
+            
+            # Log rate limit status
+            logger.info(
+                f"Rate limit status for {op_id}: "
+                f"{rate_info['remaining']}/{rate_info['limit']} "
+                f"remaining (Reset: {rate_info['reset'].isoformat()})"
+            )
+            
+            # Check if we should preemptively back off
+            if self._should_retry(op_id, rate_info):
+                delay = self.backoff.get_delay(self.retry_counts[op_id])
+                logger.info(f"Preemptive backoff for {delay:.2f} seconds")
+                time.sleep(delay)
+
+        def _handle_rate_limit_error(error: Exception) -> None:
+            """Handle rate limit error with appropriate backoff."""
+            rate_info = self.rate_limits.get(op_id, {})
+            reset_time = rate_info.get('reset')
+            
+            if reset_time:
+                logger.warning(
+                    f"Rate limit exceeded. Attempt {self.retry_counts[op_id]} "
+                    f"of {self.config.max_retries}"
+                )
+                self._wait_for_reset(reset_time)
+            else:
+                delay = self.backoff.get_delay(self.retry_counts[op_id])
+                logger.warning(
+                    f"Rate limit exceeded with unknown reset time. "
+                    f"Backing off for {delay:.2f} seconds"
+                )
+                time.sleep(delay)
+
+        # Main retry loop
         while self.retry_counts[op_id] < self.config.max_retries:
             try:
                 result = operation()
-                
-                # Update rate limits from response headers if available
-                if hasattr(result, 'headers'):
-                    rate_info = self._parse_rate_limit_headers(result.headers)
-                    if rate_info:
-                        self.rate_limits[op_id] = rate_info
-                        
-                        # Log rate limit status
-                        logger.info(
-                            f"Rate limit status for {op_id}: "
-                            f"{rate_info['remaining']}/{rate_info['limit']} "
-                            f"remaining (Reset: {rate_info['reset'].isoformat()})"
-                        )
-                        
-                        # Check if we should preemptively back off
-                        if self._should_retry(op_id, rate_info):
-                            delay = self.backoff.get_delay(self.retry_counts[op_id])
-                            logger.info(f"Preemptive backoff for {delay:.2f} seconds")
-                            time.sleep(delay)
-                
+                _handle_rate_info(result)
                 return result
 
             except Exception as e:
                 self.retry_counts[op_id] += 1
                 
-                if "rate limit exceeded" in str(e).lower():
-                    rate_info = self.rate_limits.get(op_id, {})
-                    if rate_info and rate_info.get('reset'):
-                        logger.warning(
-                            f"Rate limit exceeded. Attempt {self.retry_counts[op_id]} "
-                            f"of {self.config.max_retries}"
-                        )
-                        self._wait_for_reset(rate_info['reset'])
-                    else:
-                        delay = self.backoff.get_delay(self.retry_counts[op_id])
-                        logger.warning(
-                            f"Rate limit exceeded with unknown reset time. "
-                            f"Backing off for {delay:.2f} seconds"
-                        )
-                        time.sleep(delay)
+                if _is_rate_limit_error(e):
+                    _handle_rate_limit_error(e)
                 else:
+                    logger.error(f"Non-rate-limit error in {op_id}: {str(e)}")
                     raise
 
-        raise RuntimeError(
-            f"Operation {op_id} failed after {self.config.max_retries} retries"
-        )
+        error_msg = f"Operation {op_id} failed after {self.config.max_retries} retries"
+        logger.error(error_msg)
+        raise RuntimeError(error_msg)
 
     def reset_counts(self, operation_id: Optional[str] = None) -> None:
         """Reset retry counts for given operation or all operations."""
