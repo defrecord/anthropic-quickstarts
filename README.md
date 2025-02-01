@@ -1,58 +1,68 @@
-# Anthropic Quickstarts
+# anthropic-quickstarts
 
-Anthropic Quickstarts is a collection of projects designed to help developers quickly get started with building  applications using the Anthropic API. Each quickstart provides a foundation that you can easily build upon and customize for your specific needs.
+## Overview
+Part of the DEFRecord 2025 Engineering Strategy, this repository contributes to our development ecosystem.
+
+## Strategic Alignment
+This project aligns with our 2025 strategy through:
+- Tool Integration
+- System Compatibility
+- Performance Standards
+- Documentation Requirements
+
+## Features
+- Core functionality
+- Integration capabilities
+- Documentation
+- Testing framework
 
 ## Getting Started
+### Prerequisites
+- Python 3.8+
+- Git
+- Docker (optional)
 
-To use these quickstarts, you'll need an Anthropic API key. If you don't have one yet, you can sign up for free at [console.anthropic.com](https://console.anthropic.com).
+### Installation
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/defrecord/anthropic-quickstarts.git
+   cd anthropic-quickstarts
+   ```
 
-## Available Quickstarts
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-### Customer Support Agent
+3. Configure environment:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your settings
+   ```
 
-A customer support agent powered by Claude. This project demonstrates how to leverage Claude's natural language understanding and generation capabilities to create an AI-assisted customer support system with access to a knowledge base.
+4. Run tests:
+   ```bash
+   python -m pytest
+   ```
 
-[Go to Customer Support Agent Quickstart](./customer-support-agent)
-
-### Financial Data Analyst
-
-A financial data analyst powered by Claude. This project demonstrates how to leverage Claude's capabilities with interactive data visualization to analyze financial data via chat.
-
-[Go to Financial Data Analyst Quickstart](./financial-data-analyst)
-
-### Computer Use Demo
-
-An environment and tools that Claude can use to control a desktop computer. This project demonstrates how to leverage the computer use capabilities of the new Claude 3.5 Sonnet model.
-
-[Go to Computer Use Demo Quickstart](./computer-use-demo)
-
-## General Usage
-
-Each quickstart project comes with its own README and setup instructions. Generally, you'll follow these steps:
-
-1. Clone this repository
-2. Navigate to the specific quickstart directory
-3. Install the required dependencies
-4. Set up your Anthropic API key as an environment variable
-5. Run the quickstart application
-
-## Explore Further
-
-To deepen your understanding of working with Claude and the Anthropic API, check out these resources:
-
-- [Anthropic API Documentation](https://docs.anthropic.com)
-- [Anthropic Cookbook](https://github.com/anthropics/anthropic-cookbook) - A collection of code snippets and guides for common tasks
-- [Anthropic API Fundamentals Course](https://github.com/anthropics/courses/tree/master/anthropic_api_fundamentals)
+## Integration
+This project integrates with the DEFRecord ecosystem:
+- AI Infrastructure: Compatible with AI infrastructure
+- Tool Chain: Integrates with tool chain
+- Research Framework: Supports research framework
 
 ## Contributing
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) and review our [Code of Conduct](CODE_OF_CONDUCT.md).
 
-We welcome contributions to the Anthropic Quickstarts repository! If you have ideas for new quickstart projects or improvements to existing ones, please open an issue or submit a pull request.
+## Documentation
+- [API Documentation](docs/API.md)
+- [Architecture Overview](docs/ARCHITECTURE.md)
+- [Development Guide](docs/DEVELOPMENT.md)
 
-## Community and Support
-
-- Join our [Anthropic Discord community](https://www.anthropic.com/discord) for discussions and support
-- Check out the [Anthropic support documentation](https://support.anthropic.com) for additional help
+## Community
+- [GitHub Discussions](https://github.com/defrecord/anthropic-quickstarts/discussions)
+- [Issue Tracker](https://github.com/defrecord/anthropic-quickstarts/issues)
+- [Project Board](https://github.com/orgs/defrecord/projects?query=is%3Aopen)
 
 ## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the terms of the MIT license. See [LICENSE](LICENSE) for more details.
